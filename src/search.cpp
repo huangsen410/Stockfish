@@ -387,7 +387,7 @@ void Thread::search() {
           {
               delta = Value(18);
               alpha = std::max(rootMoves[PVIdx].previousScore - delta,-VALUE_INFINITE);
-              beta  = std::min(rootMoves[PVIdx].previousScore + delta, VALUE_INFINITE);
+              beta  = std::min(rootMoves[PVIdx].previousScore + Value(1), VALUE_INFINITE);
           }
 
           // Start with a small aspiration window and, in the case of a fail
@@ -432,11 +432,27 @@ void Thread::search() {
                       Threads.stopOnPonderhit = false;
                   }
               }
-              else if (bestValue >= beta)
-                  beta = std::min(bestValue + delta, VALUE_INFINITE);
-              else
-                  break;
+              else if (bestValue >= beta) {
+		bool anotherFound= false;
 
+		// in case in fail high, we already found the best move
+		// if it is the only one to fail high
+		for (RootMove& rm : rootMoves){
+		  if (rm.pv.size()>0 && rootMoves[PVIdx].pv.size()>0
+		      && rootMoves[PVIdx].pv[0]
+		      &&rm.pv[0]!=rootMoves[PVIdx].pv[0] && rootMoves[PVIdx].score <= rm.score ) {
+		    beta = std::min(bestValue + delta, VALUE_INFINITE);
+		    anotherFound= true;
+		    break;
+		  }
+		}
+		if(!anotherFound) {
+		  break;
+		}
+	      }
+              else {
+                  break;
+	      }
               delta += delta / 4 + 5;
 
               assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
